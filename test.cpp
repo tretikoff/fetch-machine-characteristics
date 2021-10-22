@@ -78,6 +78,7 @@ int main() {
             prev_time = cur_time;
         }
         if (isMovement()) { // Вроде как мы должны проверить, что jumps и prev_jumps различаются. Если нет - прерываем цикл
+            prev_jumps = jumps;
             H *= 2; // stride number
         } else {
             break;
