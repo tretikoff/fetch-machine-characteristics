@@ -1,29 +1,37 @@
 #include <chrono>
 
-long H = 16, S = 1, cur_time, prev_time, jump;
+long H = 16;// Stride size
+long S = 1, cur_time, prev_time, jump;
 long Z = 1000000000000, N = 100, M = 100;
 
-// The time() subroutine returns the timing measurement for a million reads for a specified higher stride and number of spots
+// The time() subroutine returns the timing measurement for a million reads
+// for a specified higher stride H and number of spots S
 long Time() {
-   auto sTime = std::chrono::high_resolution_clock::now();
-   return 1;
+    auto startTime = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 1000000; i++) {
+
+    }
+    auto endTime = std::chrono::high_resolution_clock::now();
+    return 1;
 }
 
 // The DeltaDiff() subroutine returns true if there is a jump(or a difference in timing measurements) between the current time and previous time
-long DeltaDiff() {
- return 1;
+bool DeltaDiff() {
+    long diff = 20;
+    return cur_time - prev_time > diff;
 }
+
+std::vector<long> jumps;
 
 // The RecordJump() subroutine records the position of the jump in stride and spots
 long RecordJump() {
- return 1;
+    jumps.push_back(S);
 }
 
 // The isMovement() subroutine returns true if there is a movement in the position of
-//the jumps for a current stride when compared to a previous stride
+// the jumps for a current stride when compared to a previous stride
 bool isMovement() {
- return 1;
-
+    return 1;
 }
 
 //The DetectEntity subroutine starts decreasing the stride from specified value of H and records the stride at which there is movement in jumps for each entity. This gives each entity and its stride of entity.
@@ -51,11 +59,11 @@ int main() {
             if (DeltaDiff()) {
                 RecordJump();
             }
-        S += 1;
-        prev_time = cur_time;
+            S += 1;
+            prev_time = cur_time;
         }
         if (isMovement()) {
-            H *= 2;
+            H *= 2; // stride number
         } else {
             break;
         }
