@@ -11,7 +11,8 @@ long S = 2, cur_time, prev_time, jump;
 const int MB = 1024 * 1024;
 // z- max mem, N - max assoc, M - Max Stride
 long Z = 128 * 1024, N = 50, M = 100;
-int *data[100000000];
+//int *data[100000000];
+int *data[MB * 2];
 
 const int REPS = 512 * MB;
 const int length = MB/sizeof(int) - 1;
@@ -28,10 +29,7 @@ void runLoop(int times) {
     //    }
     int **x = (int **) &data[0];
     for (int i = 0; i < times; i++) {
-        //        x = (int **) *(x+ i % 100000000);
         x = (int **) *(x);
-        auto v = x + 111;
-        //        std::cerr << v << ' ';
     }
 
 }
@@ -40,6 +38,7 @@ void runLoop(int times) {
 // for a specified higher stride H and number of spots S
 long Time() {
     auto end = (S - 1) * H;
+    //std::cout << "cyclic refs of kb: " << (end - H)/1024  << '\n';
     // Create the cyclic chain of references
     for (auto i = H; i <= end; i += H) {
         data[i] = (int*)&data[i - H];
@@ -115,9 +114,9 @@ int main() {
             cur_time = Time();
             if (DeltaDiff()) {
                 jmpC++;
-                //                std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << '\n';
                 // need to do something with S
-                std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << ' ' << S /jmpC  << '\n';
+                std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << '\n';
+                //std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << ' ' << S /jmpC  << '\n';
                 RecordJump();
                 seenJumpsAt.insert(H);
                 if (record.count(H)) {
@@ -127,29 +126,50 @@ int main() {
                     record.insert({H, std::vector<std::tuple<int, int>>()});
                 }
             }
-            //            S++;
-            S += 2;
+            //S++;
+            S += 4;
             prev_time = cur_time;
         }
-        //        std::cout<< prev_time << " for " << H << '\n';
+        //std::cout<< prev_time << " for " << H << '\n';
         if (isMovement()) { // Вроде как мы должны проверить, что jumps и prev_jumps различаются. Если нет - прерываем цикл
-            //            movements[H] = jumps.size();
-            prev_jumps = jumps;
+            //movements[H] = jumps.size();
+            //prev_jumps = jumps;
             jumps.clear();
             H *= 2; // stride number
         } else {
             break;
         }
     }
-    //    DetectEntity(H);
-    //    std:: cout << H / 1024 << ' ' << S;
+    //DetectEntity(H);
+    //std:: cout << H / 1024 << ' ' << S;
     std:: cout << H  << ' ' << S << ' ' << jmpC << "\n\n";
 
+    long currT, prevT = 1;
+    long cacheLineS = 1;
+    double maxDiff = 1.2;
     for (const auto &item : record) {
         auto innerV = item.second;
-        std:: cout << item.first << ' ';
-        std::sort(innerV.begin(), innerV.end(), sortFirst);
-        std::cout << std::get<0>(innerV[0])  << ' ' << std::get<1>(innerV[0]) << '\n';
+        //std:: cout << item.first << ' ';
+
+        for (const auto &vElem : innerV) {
+            currT = std::get<0>(vElem);
+            // тут надо бы сбрасывать maxDiff, когда вышли за предполагаемый размер кеш-уровня
+            float tDiff = (prevT != 1) ? currT / prevT : 1;
+            if (tDiff > maxDiff) {
+                maxDiff = tDiff;
+                std::cout << "Spark in " << currT << ' ' << item.first << "; diff: " << tDiff << '\n';
+                cacheLineS = item.first;
+            }
+            prevT = currT;
+        }
+
+
+
+        //std::sort(innerV.begin(), innerV.end(), sortFirst);
+        //std::cout << std::get<0>(innerV[0])  << ' ' << std::get<1>(innerV[0]) << '\n';
     }
+
+    // TODO: perhaps, multiple runs needed to stabilise results
+    std::cout << "Cache-line size: " << cacheLineS << std::endl;
 
 }
