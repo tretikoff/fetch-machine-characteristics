@@ -2,15 +2,16 @@
 #include <vector>
 #include <set>
 #include <iostream>
+#include <map>
+#include <algorithm>
 
 long H = 16;// start Stride size
 // S - start associativity
 long S = 2, cur_time, prev_time, jump;
 const int MB = 1024 * 1024;
 // z- max mem, N - max assoc, M - Max Stride
-long Z = 1024, N = 50, M = 100;
+long Z = 128 * 1024, N = 50, M = 100;
 int *data[100000000];
-int movements[256];
 
 const int REPS = 512 * MB;
 const int length = MB/sizeof(int) - 1;
@@ -65,7 +66,7 @@ std::set<long> jumps;
 // The RecordJump() subroutine records the position of the jump in stride and spots
 void RecordJump() {
     //    jumps.insert(S - 1);
-    jumps.insert(H - 1);
+    jumps.insert(H);
 }
 
 // The isMovement() subroutine returns true if there is a movement in the position of
@@ -83,6 +84,13 @@ void DetectEntity(long H) {
     }
 }
 
+
+bool sortFirst(const std::tuple<int, int>& lhs,const std::tuple<int, int>& rhs) {
+    //    return (std::get<0>(lhs) < std::get<0>(rhs) && std::get<1>(lhs) < std::get<1>(rhs));
+    //    return (std::get<1>(lhs) < std::get<1>(rhs) && std::get<0>(lhs) < std::get<0>(rhs));
+    return (std::get<1>(lhs) < std::get<1>(rhs));
+}
+
 /**
  * Написать программу, которая вычисляет и печатает характеристики кэша данных компьютера
 ● Число уровней
@@ -93,16 +101,31 @@ void DetectEntity(long H) {
  * */
 int main() {
     std::cout <<( H * N < Z) << " Start\n";
+
+    std::vector<long> jumpsTime;
+    std::set<long> seenJumpsAt;
+    // H -> (time, S)
+    std::map<long, std::vector<std::tuple<int, int>>> record;
+
+
     int jmpC = 0;
     while (H * N < Z) {
-        //        S = 1;
+        S = 2;
         while (S < N) {
             cur_time = Time();
             if (DeltaDiff()) {
                 jmpC++;
                 //                std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << '\n';
+                // need to do something with S
                 std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << ' ' << S /jmpC  << '\n';
                 RecordJump();
+                seenJumpsAt.insert(H);
+                if (record.count(H)) {
+                    auto& timeV = record[H];
+                    timeV.emplace_back(cur_time, S);
+                } else {
+                    record.insert({H, std::vector<std::tuple<int, int>>()});
+                }
             }
             //            S++;
             S += 2;
@@ -118,7 +141,15 @@ int main() {
             break;
         }
     }
-    DetectEntity(H);
+    //    DetectEntity(H);
     //    std:: cout << H / 1024 << ' ' << S;
-    std:: cout << H  << ' ' << S << ' ' << jmpC;
+    std:: cout << H  << ' ' << S << ' ' << jmpC << "\n\n";
+
+    for (const auto &item : record) {
+        auto innerV = item.second;
+        std:: cout << item.first << ' ';
+        std::sort(innerV.begin(), innerV.end(), sortFirst);
+        std::cout << std::get<0>(innerV[0])  << ' ' << std::get<1>(innerV[0]) << '\n';
+    }
+
 }
