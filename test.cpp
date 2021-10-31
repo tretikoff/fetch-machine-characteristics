@@ -3,7 +3,7 @@
 #include <set>
 #include <iostream>
 #include <map>
-#include <algorithm>
+//#include <algorithm>
 #include <cmath>
 
 long H = 16;// start Stride size
@@ -12,7 +12,6 @@ long S = 2, cur_time, prev_time, jump;
 const int MB = 1024 * 1024;
 // z- max mem, N - max assoc, M - Max Stride
 long Z = 128 * 1024, N = 50, M = 100;
-//int *data[100000000];
 int *data[MB * 2];
 
 const int REPS = 512 * MB;
