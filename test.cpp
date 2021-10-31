@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <algorithm>
+#include <cmath>
 
 long H = 16;// start Stride size
 // S - start associativity
@@ -18,15 +19,6 @@ const int REPS = 512 * MB;
 const int length = MB/sizeof(int) - 1;
 
 void runLoop(int times) {
-    //    int tmp = 0;
-    //    int **x = (int **) &data[0];
-    //    for (size_t j = 0; j < times; j++) {
-    //        for (size_t k = 0; k < REPS; k++) {
-    //            // read the data in strides (`i`)
-    //            tmp += *x[(k)& 100000000];
-    //            std:: cout << tmp << ' ';
-    //        }
-    //    }
     int **x = (int **) &data[0];
     for (int i = 0; i < times; i++) {
         x = (int **) *(x);
@@ -46,7 +38,7 @@ long Time() {
     if (estimatedCacheSize < currSizeKB) {
         estimatedCacheSize = currSizeKB;
     }
-    //std::cout << cur_time << ' ' << "cyclic refs of kb: " << currSizeKB  << '\n';
+    std::cout << cur_time << ' ' << "cyclic refs of kb: " << currSizeKB  << '\n';
     // Create the cyclic chain of references
     for (auto i = H; i <= end; i += H) {
         data[i] = (int*)&data[i - H];
@@ -159,34 +151,39 @@ std::vector<long> determineCacheSizes() {
     long prevTime = 1;
 
     determineL1Size(tmp);
-    return tmp;
+    //return tmp;
+    long startSize = 512 * 1024;
+    // L2 and L3; 4096 for L2
+    std::vector<long> cacheBound{static_cast<long>(pow(2, 12)), 9200};
+    std::vector<std::pair<long, long>> probes;
+    long cacheS = 1;
 
-
-    for (long size = 1024; size <= 10 * MB; size += step - 1) {
-        auto currTime = traverseCache(size, 64);
-        auto currDiff = abs(currTime - minTime);
-        if (size >= 256 * 1024) {
-            step = 256 * 1024;
-        }
-
-        if (size == 1024) {
-            minTime = currTime;
-            currDiff = 1;
-        } else if (currTime < minTime) {
-            if (tmp.size()) {
-                int back = tmp[tmp.size() - 1];
-                //std::cout << "Diff is: " << size/1024 - back << '\n';
-                if (size/1024 - back <= 512) {
-                    std::cout << size / 1024 << ' ' << currTime << ' ' <<  currDiff <<'\n';
-                    continue;
+    for (const auto &item : cacheBound) {
+        std::cout << "Seek from " <<startSize/1024 << " to " << item * 1024 << '\n';
+        probes.clear();
+        for (long size = startSize; size <= item * 1024 - 1; size += step) {
+            auto currTime = traverseCache(size, 64);
+            auto currDiff = std::abs(currTime - prevTime);
+            if (size == startSize) {
+                prevTime = currTime;
+                continue;
+            }
+            if (!probes.empty()) {
+                if (currDiff > maxDiff) {
+                    maxDiff = currDiff;
+                    cacheS = size / 1024;
                 }
             }
-            tmp.push_back(size / 1024);
-            //lastSpotted = size;
-            minTime = currTime;
+            probes.emplace_back(currDiff, size/1024);
+            prevTime = currTime;
+            std::cout << size / 1024 << ' ' << currTime << ' ' <<  currDiff <<'\n';
         }
-        std::cout << size / 1024 << ' ' << currTime << ' ' <<  currDiff <<'\n';
+        startSize = item * 1024;
+        std::cout << "Potential cache is " << cacheS << '\n';
+        tmp.push_back(cacheS);
+        maxDiff = 1;
     }
+
 
     return tmp;
 }
@@ -201,7 +198,7 @@ std::vector<long> determineCacheSizes() {
     ● Ассоцитивность
  * */
 int main() {
-    std::cout <<( H * N < Z) << " Start\n";
+    std::cout << "Start\n";
 
     std::vector<long> jumpsTime;
     std::set<long> seenJumpsAt;
@@ -219,15 +216,11 @@ int main() {
                 // need to do something with S
                 //std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << '\n';
 
-                //if (estimatedCacheSize <= Z) {
-                //    std::cout<< "time: " << cur_time <<" jump at " << H << ' ' << S << '\n';
-                //}
-
                 RecordJump();
                 seenJumpsAt.insert(H);
                 if (record.count(H)) {
                     auto& timeV = record[H];
-                    timeV.push_back({cur_time, S});
+                    timeV.emplace_back(cur_time, S);
                 } else {
                     record.insert({H, std::vector<std::tuple<int, int>>()});
                 }
@@ -254,15 +247,12 @@ int main() {
     long cacheLineS = 1;
     double maxDiff = 1.2;
     for (const auto &item : record) {
-        auto& innerV  = item.second;
-        std:: cout << item.first << '\n';
+        auto& innerV = item.second;
+        //std:: cout << item.first << ' ';
 
-        std::cout << innerV.size() << '\n';
         for (const auto &vElem : innerV) {
             currT = std::get<0>(vElem);
-            std::cout << currT << ' ';
             float tDiff = (prevT != 1) ? currT / prevT : 1;
-            std::cout << tDiff <<'\n';
             if (tDiff > maxDiff) {
                 maxDiff = tDiff;
                 std::cout << "Spark in " << currT << ' ' << item.first << "; diff: " << tDiff << '\n';
@@ -272,18 +262,17 @@ int main() {
         }
 
 
-
         //std::sort(innerV.begin(), innerV.end(), sortFirst);
         //std::cout << std::get<0>(innerV[0])  << ' ' << std::get<1>(innerV[0]) << '\n';
     }
 
     // TODO: perhaps, multiple runs needed to stabilise results
-    std::cout << "Cache-line size: " << cacheLineS << '\n';
+    std::cout << "Cache-line size: " << cacheLineS << std::endl;
 
 
     auto caches = determineCacheSizes();
 
-    std::cout << caches.size() << '\n';
+    std::cout << "Levels: " << caches.size() << '\n';
     for (const auto &item : caches) {
         std::cout << item << ' ';
     }
