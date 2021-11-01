@@ -3,7 +3,7 @@
 #include <set>
 #include <iostream>
 #include <map>
-//#include <algorithm>
+#include <algorithm>
 #include <cmath>
 
 long H = 16;// start Stride size
@@ -12,8 +12,10 @@ long S = 2, cur_time, prev_time, jump;
 const int MB = 1024 * 1024;
 // z- max mem, N - max assoc, M - Max Stride
 long Z = 128 * 1024, N = 50, M = 100;
+//int *data[100000000];
 int *data[MB * 2];
 
+const int L1SizeBound = 512;
 const int REPS = 512 * MB;
 const int length = MB/sizeof(int) - 1;
 
@@ -116,7 +118,7 @@ void determineL1Size(std::vector<long>& ans) {
     std::vector<std::pair<long, long>> l1Probes;
     long maxDiffSize = 1024;
     // run separate loop for L1
-    for (long size = 1024; size <= 128 * 1024; size += 16 * 1024) {
+    for (long size = 1024; size <= L1SizeBound * 1024; size += 16 * 1024) {
         auto currTime = traverseCache(size, 64);
         auto currDiff = std::abs(currTime - prevTime);
         //std::cout << size/1024 << ' ' << currTime << ' '  << currDiff << ' ' <<  '\n';
@@ -153,7 +155,8 @@ std::vector<long> determineCacheSizes() {
     //return tmp;
     long startSize = 512 * 1024;
     // L2 and L3; 4096 for L2
-    std::vector<long> cacheBound{static_cast<long>(pow(2, 12)), 9200};
+    //std::vector<long> cacheBound{static_cast<long>(pow(2, 12)), 9200};
+    std::vector<long> cacheBound{static_cast<long>(pow(2, 12)), static_cast<long>(pow(2, 14))};
     std::vector<std::pair<long, long>> probes;
     long cacheS = 1;
 
