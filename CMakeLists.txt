@@ -4,3 +4,4 @@ project(fetch_machine_characteristics)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(fetch_machine_characteristics test.cpp)
+add_executable(Associativity testAssociativity.cpp)
