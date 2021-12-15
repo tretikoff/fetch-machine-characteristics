@@ -9,9 +9,9 @@
 
 long S = 2, cur_time, prev_time, jump;
 const int MB = 1024 * 1024;
-long maxAssoc = 30;
+long maxAssoc = 65;
 const int L1SizeBound = 512;
-const size_t repeatNum = 1e4;
+const size_t repeatNum = 1e5;
 const size_t cacheBounds[] = {512, 4096, 65536};
 
 
@@ -50,7 +50,7 @@ std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_
     timeProbes.push_back(1);
     // essential
     int **x = (int **) &data[0];
-    for (size_t i = 0; i < repeatNum; ++i) {
+    for (size_t i = 0; i < 2; ++i) {
         x = (int **)*(x);
     }
 
@@ -78,15 +78,14 @@ std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_
 
 
 int main() {
-    const size_t L2Bound = 4096;
-    auto measures = traverseAssociativityLevel(L2Bound * 1024 * 1024, 512 * 1024, 1);
+    size_t startA = 10; // looks ok?
+    auto measures = traverseAssociativityLevel(cacheBounds[1] * 1024, 2 * 1024, startA);
     //auto measures = traverseAssociativityLevel(cacheBounds[1] * 1024, 256 * 1024);
     std::cout << measures.size() << '\n';
-    size_t c = 0;
+    size_t c = startA;
     for (const auto &item : measures) {
         std::cout << c++ << ',' << item << ' ';
     }
-
 
 
 }
