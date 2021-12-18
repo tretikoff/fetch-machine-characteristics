@@ -12,7 +12,7 @@ const int MB = 1024 * 1024;
 long maxAssoc = 65;
 const int L1SizeBound = 512;
 const size_t repeatNum = 1e5;
-const size_t cacheBounds[] = {512, 4096, 32768};
+const size_t cacheBounds[] = {512, 4096, 16384};
 
 
 inline void loopRunner(int ** data, size_t assoc) {
@@ -52,6 +52,25 @@ int* prepareArray(long size, size_t cacheLineSize) {
     return buf;
 }
 
+inline float getMaxDiff(size_t level) {
+    switch (level) {
+        case 1:
+            return 1.69;
+        case 2:
+            return 1.34;
+        case 3:
+            return 90;
+        default:
+             return 1.7;
+    }
+}
+
+inline bool checkTimeDifference(long lhs, long rhs, float diff) {
+    if (diff == getMaxDiff(3)) {
+        return lhs - rhs > diff;
+    }
+    return ((lhs + 0.1) / rhs) > diff;
+}
 
 
 /**
@@ -59,7 +78,7 @@ int* prepareArray(long size, size_t cacheLineSize) {
  * @param levelSizeBound - max for curr cache level
  * @param stride -  step for current cache
  */
-std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_t stride, size_t startAssoc) {
+std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_t stride, size_t startAssoc, size_t targetLevel) {
     //int** data = new int*[levelSizeBound];
     //auto end = (startAssoc) * stride;
     //// Create the cyclic chain of references
@@ -83,7 +102,7 @@ std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_
     for (size_t i = 0; i < 2; ++i) {
         v = data[v];
     }
-
+    float maxDiff = getMaxDiff(targetLevel);
     // run for all potential Assoc
     for (size_t targetElems = startAssoc; targetElems < maxAssoc; ++targetElems) {
         startT = std::chrono::high_resolution_clock::now();
@@ -94,9 +113,10 @@ std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_
         unsigned long prevT = timeProbes.back();
         timeProbes.push_back(t);
 
-        //if (prevT != 1 && t / prevT > 1.7) {
+        //if (prevT != 1 && t / prevT > maxDiff) {
+        //if (prevT != 1 && checkTimeDifference(t, prevT, maxDiff)) {
         //    std::cout << "Potential accos is " << targetElems - 1 << '\n';
-        //    break;
+        //    //break;
         //}
     }
 
@@ -105,32 +125,54 @@ std::vector<unsigned long> traverseAssociativityLevel(long levelSizeBound, size_
     return timeProbes;
 }
 
-
-
-int main() {
-    std::vector<int> levels = {1, 2, 3};
-    //for (int i = 1; i < 32; ++i) {
-    //    std::cout << "Assoc: " << i << '\n';
-    //    size_t startA = 10; // looks ok?
-    //    auto measures = traverseAssociativityLevel(cacheBounds[1] * 1024, 2 * 1024, startA);
-    //    //auto measures = traverseAssociativityLevel(cacheBounds[1] * 1024, 256 * 1024);
-    //    std::cout << measures.size() << '\n';
-    //    size_t c = startA;
-    //    for (const auto &item : measures) {
-    //        std::cout << c++ << ',' << item << ' ';
-    //    }
-    //    std::cout << '\n';
-    //}
+inline void mainRoutine(std::vector<int> &levels, size_t stride) {
+    std::cout << "Stride: " << stride << '\n';
     for (const auto &item : levels) {
         size_t startA = item == 1 ? 1 : 4 * (item - 1); // looks ok?
         std::cout << "Level: " << item << ". Start assoc: " << startA << '\n';
-        auto measures = traverseAssociativityLevel(cacheBounds[item - 1] * 1024, 2 * 1024, startA);
+        auto measures = traverseAssociativityLevel(cacheBounds[item - 1] * 1024, stride, startA, item);
         std::cout << measures.size() << '\n';
         size_t c = startA;
         for (const auto &item : measures) {
             std::cout << c++ << ',' << item << ' ';
         }
         std::cout << '\n';
+    }
+}
+
+
+void tryDetermineAssoc(std::vector<unsigned long>& probes, size_t level, size_t startAssoc) {
+    auto maxDiff = getMaxDiff(level);
+    auto prevT = probes.front();
+    for (size_t i = startAssoc; i < probes.size(); ++i) {
+        auto t = probes[i];
+        if (prevT != 1 && checkTimeDifference(t, prevT, maxDiff)) {
+            std::cout << "Potential Assoc for L" << level << " is: " << i << '\n';
+            break;
+        }
+        prevT = t;
+    }
+
+}
+
+int main() {
+    std::vector<int> levels = {1, 2}; // better for 2 levels
+    //for (long st = 2 * 1024; st < 2 << 14; st <<= 2) { // seems like not so optimal
+    //    mainRoutine(levels, st);
+    //}
+
+    for (const auto &item : levels) {
+        size_t startA = item == 1 ? 1 : 4 * (item - 1); // looks ok?
+        std::cout << "Level: " << item << ". Start assoc: " << startA << '\n';
+        auto measures = traverseAssociativityLevel(cacheBounds[item - 1] * 1024, 512, startA, item);
+        std::cout << measures.size() << '\n';
+        size_t c = startA;
+        for (const auto &item : measures) {
+            std::cout << c++ << ',' << item << ' ';
+        }
+        std::cout << '\n';
+
+        tryDetermineAssoc(measures, item, startA); // this is demo-feature, results are not always accurate
     }
 
 
