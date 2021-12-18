@@ -128,9 +128,9 @@ long traverseCache(long size, size_t cacheLineSize) {
     //auto startTime = std::chrono::high_resolution_clock::now();
     auto startTime = std::chrono::steady_clock::now();
 
-    // repeat 10 times
+    // repeat 10 times (maybe do rand before again?)
     for (size_t i = 0; i < 10 * size; i++) {
-        v = buf[v];
+        v = buf[(rand() + v) % size];
     }
     auto endTime = std::chrono::steady_clock::now();
 
@@ -141,23 +141,29 @@ long traverseCache(long size, size_t cacheLineSize) {
 
 // looks ok
 void determineL1Size(std::vector<long>& ans) {
-    long maxDiff = 1;
+    auto maxDiff = 1.0;
     long prevTime = 1;
     std::vector<std::pair<long, long>> l1Probes;
     long maxDiffSize = 1024;
+    bool hasFound = false;
     // run separate loop for L1
     //for (long size = 16 * 1024; size <= L1SizeBound * 1024; size += 16 * 1024) {
     for (long size = 8 * 1024; size <= L1SizeBound * 1024; size *= 2) {
         auto currTime = traverseCache(size, 64);
-        auto currDiff = std::abs(currTime - prevTime);
-        //std::cout << size/1024 << ' ' << currTime << ' '  << currDiff << ' ' <<  '\n';
+        //auto currDiff = std::abs(currTime - prevTime);
+        auto currDiff = std::abs((currTime + 0.1) / prevTime);
+        std::cout << size/1024 << ' ' << currTime << ' '  << currDiff << ' ' <<  '\n';
         if (!l1Probes.empty()) {
             auto prevDiff = l1Probes.back().first;
             auto relDiff = currDiff / prevDiff;
             //std::cout << size/1024 << ' ' << currDiff << ' '  << relDiff << ' ' << maxDiff << '\n';
-            if (relDiff > maxDiff) {
+            if (currDiff > maxDiff && !hasFound) {
+            //if (relDiff > 1.9 && !hasFound) {
                 maxDiff = currDiff;
                 maxDiffSize = size / 1024;
+                if (maxDiff > 2.3) {
+                    hasFound = true;
+                }
             }
         }
 
